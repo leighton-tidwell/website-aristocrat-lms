@@ -1,0 +1,424 @@
+<?php
+session_start();
+if(!$_GET['id']){
+	header("location: 404.html");
+	exit;
+}
+$id = $_GET['id'];
+include "core/sqlconnect.php";
+include "core/class.user.php";
+$user = new user();
+$class2 = $user->fetchAssinClass($id, "class");
+$user->inClass($class2);
+?>
+<doctype html>
+<html>
+
+<head>
+<title>Student Portal</title>
+<link rel="stylesheet" type="text/css" href="style/bootstrap.min.css" />
+<link rel="stylesheet" type="text/css" href="style/global.css" />
+<link rel="stylesheet" type="text/css" href="style/style.css" />
+<link rel="stylesheet" type="text/css" href="style/fileinput.css" type="text/css" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<!--
+Website created, designed, and coded by: Leighton Tidwell;
+-->
+</head>
+<body>
+<?php
+include "core/navigation.php";
+?>
+<div class="container">
+	<div class="row">
+		<div class="col-md-3">
+        <?php
+			if($user->fetchAssinClass($id, "picture")){
+		?>
+        <div class="panel panel-default">
+				<div class="panel-heading">
+					<h3 class="panel-title">Assignment Picture</h3>
+			  	</div>
+				<div class="panel-body">
+                    <img class="thumbnail img-responsive center-block" src="<?php print $user->fetchAssinClass($id, "picture"); ?> " />
+				</div>
+			</div>
+            <?php
+			}
+			?>
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<h3 class="panel-title">Assignment Information</h3>
+			  	</div>
+				<div class="panel-body">
+                    <table class="table table-striped customTable table-bordered">
+                    	<tr>
+                    		<td>Created By:</td>
+                    		<?php 
+								echo("<td></td>");
+							?>
+                    	</tr>
+                        <tr>
+                            <td>Time Assigned:</td>
+                            <td><?php print date("F j", $user->fetchAssinClass($id,"timeAssigned")); ?> </td>
+                        </tr>
+                        <tr>
+                            <td>Time Due:</td>
+                            <td><?php print date("F j", $user->fetchAssinClass($id,"timeDue")); ?> </td>
+                        </tr>
+                        <tr>
+                            <td>Type:</td>
+                            <td>
+                            	<?php
+                            		if($user->fetchAssinClass($id, "type") == 1){
+                            			print "Assignment";
+                            		}else{
+                            			print "Test";
+                            		}
+                            	?>
+                            </td>
+                        </tr>
+                        <tr>
+                        	<td>Turn in:</td>
+                        	<td>Digital</td>
+                        </tr>
+						<?php
+							if(!$user->IsTeacher()){
+								$findGradeStudent = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($user->getUserInfo("id"))."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+								if(mysql_num_rows($findGradeStudent) != 0){
+									$fetchTheGrade = mysql_fetch_array($findGradeStudent);
+									echo("<tr>");
+										echo("<td>Grade:</td>");
+										echo("<td>" . $fetchTheGrade['grade'] . "</td>");
+									echo("</tr>");
+								}
+								$lateQuery = mysql_query("SELECT * FROM `turnin` WHERE `class`='" . mysql_real_escape_string($class2) . "' AND `aid`='" . mysql_real_escape_string($id) . "' AND `uid`='" . mysql_real_escape_string($user->getUserInfo("id"))."' ORDER BY `time` DESC LIMIT 1") or die(mysql_error());
+								$fetchLateQuery = mysql_fetch_array($lateQuery);
+								if($fetchLateQuery['time'] > $user->fetchAssinClass($id,"timeDue")){
+									echo("<tr class=\"warning\">");
+										echo("<td>Late:</td>");
+										echo("<td>Yes</td>");
+									echo("</tr>");
+								}
+		
+							}
+						?>
+                    </table>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-9">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+				<?php
+					if($user->isTeacher()){
+				?>
+					<a href="editAssignment.php?id=<?php print $id; ?>"><span class="glyphicon glyphicon-pencil pull-right"></span></a>
+				<?php
+				}
+				?>
+                <ol class="breadcrumb panel-title" style="margin:0px; padding:0px;">
+                	<li>
+						<a href="http://alpha.aristocratlms.com/course.php?id=<?php print $user->fetchAssinClass($id, "class"); ?>"><?php print $user->getClassInfo($class2,"name"); ?></a>
+                    </li>
+                    <li class="active"><?php print $user->fetchAssinClass($id, "name"); ?></li>
+                </ol>
+			  	</div>
+				<div class="panel-body">
+					<p><h2><?php print $user->fetchAssinClass($id, "name"); ?></h2>	
+                    	<?php print $user->fetchAssinClass($id, "description"); ?></h2></p>
+                        <hr>
+                    		<?php
+                    $jsonString = $user->fetchAssinClass($id, "resources");
+					$jsonArray = json_decode($jsonString, true);
+					$count = 0;
+					if($jsonString != "null" && $user->fetchAssinClass($id, "resources") != ""){
+						$object = count($jsonArray);
+						$url = array();
+						$resource = array();
+						for($i = 0;  $i < $object; $i++){
+							if($i % 2 == 0){
+								$newCount = count($url);
+								$newNum = $newCount + 1;
+								$url[$newNum] = $jsonArray[$i];
+							}else{
+								$newCount = count($resource);
+								$newNum = $newCount + 1;
+								$resource[$newNum] = $jsonArray[$i];
+							}
+						}
+						$countMe = 1;
+						echo("<h3>Resources</h3>");
+						echo("<div class=\"well\">");
+						foreach($url as $link){
+							echo("<span class=\"glyphicon glyphicon-save-file\" aria-hidden=\"true\"></span>&nbsp;<a href=\"" . $resource[$countMe] . "\">" . $link . "</a><br />");
+							$countMe++;
+						}
+						echo("</div>");
+					}
+                    		?>
+						<?php
+							$find = mysql_query("SELECT * FROM `turnin` WHERE `aid`='" . mysql_real_escape_string($id) . "' AND `uid`='" . $user->getUserInfo("id") . "' ORDER BY `time` DESC");
+							if($user->fetchAssinClass($id, "type") == "1"){
+								if(!$user->isTeacher()){
+									if(mysql_num_rows($find) != $user->fetchAssinClass($id, "submissions") || !mysql_num_rows($find) || mysql_num_rows($find) == 0){
+							?>
+								<hr>
+								<label class="control-label">Submit Assignment</label> 
+								<input id="input-709" type="file" name="assignments[]" multiple class="file-loading">
+								<div id="kv-success-2" class="alert alert-success fade in" style="margin-top:10px;display:none;"><ul></ul></div>
+								<div id="errordiv" class="alert alert-danger fade in" style="margin-top:10px;display:none;"></div>
+							<?php
+									}
+									if(mysql_num_rows($find) > 0){
+										echo("<hr>");
+										echo("<h3>Submissions (" . mysql_num_rows($find) . "/" . $user->fetchAssinClass($id, "submissions") . ")</h3>");
+										echo("<div class=\"well\">");
+										while($item = mysql_fetch_array($find)){
+											echo("<span class=\"glyphicon glyphicon-save-file\" aria-hidden=\"true\"></span>&nbsp;<a href=\"" . $item['href'] . "\">" . $item['name'] . "</a> at " . date("F j Y, g:i a", $item['time']) . "<br />");
+										}
+										echo("</div>");
+									}
+								}
+								else{
+									$users = array();
+									$assinArray = mysql_query("SELECT * FROM `turnin` WHERE `class`='" . mysql_real_escape_string($class2) . "' AND `aid`='" . mysql_real_escape_string($id) . "'") or die(mysql_error());
+									echo("<div class=\"panel panel-default\">");
+										echo("<div class=\"panel-heading\">Submissions</div>");
+										echo("<div class=\"panel-body\">");
+										while($testme = mysql_fetch_array($assinArray)){
+												if(!in_array($testme['uid'],$users)){
+													array_push($users, $testme['uid']);
+												}
+										}
+										foreach($users as $usering){
+											$assinArrayModerate = mysql_query("SELECT * FROM `turnin` WHERE `class`='" . mysql_real_escape_string($class2) . "' AND `aid`='" . mysql_real_escape_string($id) . "' AND `uid`='" . mysql_real_escape_string($usering)."'") or die(mysql_error());
+											$query = mysql_query("SELECT * FROM `users` WHERE `id`='" . mysql_real_escape_string($usering). "' ORDER BY `lastName` DESC");
+											$fetch = mysql_fetch_array($query);
+												echo("<div class=\"media\">");
+													echo("<div class=\"media-left media-middle\">");
+														echo("<a href=\"./profile/".$fetch['username']."\" class=\"hidden-xs\">");
+															echo("<img class=\"media-object\" width=\"64px\" src=\"" .$fetch['profilePicture']. "\" alt=\"Profile Picture\" />");
+														echo("</a>");
+													echo("</div>");
+													echo("<div class=\"media-body\">");
+														echo("<h4 class=\"media-heading\"></h4>");
+															echo("<div class=\"well clearfix\">");
+															$lateErNot = mysql_query("SELECT * FROM `turnin` WHERE `class`='" . mysql_real_escape_string($class2) . "' AND `aid`='" . mysql_real_escape_string($id) . "' AND `uid`='" . mysql_real_escape_string($usering)."' ORDER BY `time` DESC LIMIT 1") or die(mysql_error());
+															$fetchLate = mysql_fetch_array($lateErNot);
+															if($fetchLate['time'] > $user->fetchAssinClass($id,"timeDue")){
+																$alert = "<button type=\"button\" class=\"btn btn-warning\">Late</button>";
+															}
+															$findGrade = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($usering)."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+															if(mysql_num_rows($findGrade) != 0){
+																$alert = "<button type=\"button\" class=\"btn btn-info\">Graded</button>";
+															}
+															echo("<h4>" . $fetch['firstName']. " " . $fetch['lastName'] . "'s submission(s)<span class=\"pull-right\">" .$alert. "&nbsp;<a href=\"fileGrader.php?id=".$id."&uid=".$usering."&cid=".$class2."\" class=\"btn btn-default\"  >Grade</a></span></h4><hr>");
+												while($assin = mysql_fetch_array($assinArrayModerate)){
+													if(strlen($assin['name']) > 20){
+														$stringCut = substr($assin['name'], 0, 20);
+														$string = $stringCut . "...";
+													}
+													else{
+														$string = $assin['name'];
+													}
+																	echo("<span class=\"glyphicon glyphicon-save-file\" aria-hidden=\"true\"></span>&nbsp;<a href=\"" . $assin['href'] . "\">" . $string. "</a><span class=\"hidden-xs\"> on " . date("F j Y, g:i a", $assin['time']) . "</span><br />");
+												}
+															echo("</div>");
+													echo("</div>");
+												echo("</div>");
+												echo("<hr>");
+												/*
+												<span class=\"label label-warning\">Late</span><span class=\"label label-info\">Not Graded</span><span class=\"label label-success\">Graded</span>
+												*/
+											
+									
+								}
+								echo("<h4>Not Submitted</h4>");
+									if($users){
+										$dude = true;
+									}
+									$schoolID = $user->getUserInfo("school");
+									echo("<ul class=\"list-group\">");
+										foreach($user->getUsersFrom($schoolID) as $person){
+											if($dude){
+												if(!in_array($person, $users) && $user->fetchProfileInfo($person, "permissions") != 2){
+													$findGrades = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($person)."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+													if(mysql_num_rows($findGrades) != 0){
+														$alert2 = "<a class=\"badge\" style=\"background-color: #5bc0de;\">Graded</a>";
+													}
+													else{
+														$alert2 = "";
+													}
+													echo("<li class=\"list-group-item\">");
+														echo("<a class=\"badge\" href=\"fileGrader.php?id=".$id."&uid=".$person."&cid=".$class2."\">");
+															echo("Grade");
+														echo("</a>");
+														if($alert2){ echo($alert2); }
+														echo("".$user->fetchProfileInfo($person,"firstName")." ".$user->fetchProfileInfo($person,"lastName")."");
+													echo("</li>");
+												}
+											}
+											else{
+												$findGrades = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($person)."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+												if(mysql_num_rows($findGrades) != "0"){
+													$alert2 = "<a class=\"badge\" style=\"background-color: #5bc0de;\">Graded</a>";
+												}
+												else{
+													$alert2 = "";
+												}
+												echo("<li class=\"list-group-item\">");
+													echo("<a class=\"badge\" href=\"fileGrader.php?id=".$id."&uid=".$person."&cid=".$class2."\">");
+														echo("Grade");
+													echo("</a>");
+													if($alert2){ echo($alert2); }
+													echo("".$user->fetchProfileInfo($person,"firstName")." ".$user->fetchProfileInfo($person,"lastName")."");
+												echo("</li>");
+											}
+										}
+									echo("</ul>");
+								echo("</div>");
+							echo("</div>");
+								}
+							}
+							elseif($user->fetchAssinClass($id, "type") == "2"){
+								echo("<h2>Test</h2>");
+								echo("<div class=\"well\">");
+									echo("<p>This is a timed test.. You will have 30 minutes to complete the test.</p>");
+									echo("<a href=\"takeTest.php?id=" . $id . "\" class=\"btn btn-default btn-info\">Take The Test</a>");
+								echo("</div>");
+								echo("<hr>");
+								$query = mysql_query("SELECT * FROM `testinfo` WHERE `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+								$users = array();
+								if($user->isTeacher()){
+									echo("<div class=\"panel panel-default\">");
+											echo("<div class=\"panel-heading\">Submissions</div>");
+											echo("<div class=\"panel-body\">");
+												while($fetch = mysql_fetch_array($query)){
+													if(!in_array($fetch['uid'],$users)){
+														array_push($users, $fetch['uid']);
+													}
+												}
+												foreach($users as $usering){
+													$query2 = mysql_query("SELECT * FROM `testinfo` WHERE `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "' AND `uid`='" . mysql_real_escape_string($usering) . "'");
+													$query3 = mysql_query("SELECT * FROM `users` WHERE `id`='" . mysql_real_escape_string($usering). "' ORDER BY `lastName` DESC");
+													$fetch3 = mysql_fetch_array($query3);
+													echo("<div class=\"media\">");
+														echo("<div class=\"media-left media-middle\">");
+															echo("<a href=\"./profile/".$fetch3['username']."\" class=\"hidden-xs\">");
+																echo("<img class=\"media-object\" width=\"64px\" src=\"" .$fetch3['profilePicture']. "\" alt=\"Profile Picture\" />");
+															echo("</a>");
+														echo("</div>");
+														echo("<div class=\"media-body\">");
+															echo("<h4 class=\"media-heading\"></h4>");
+																echo("<div class=\"well clearfix\">");
+																$lastAttempt = mysql_num_rows($query2);
+																$query4 = mysql_query("SELECT * FROM `testinfo` WHERE `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "' AND `uid`='" . mysql_real_escape_string($usering) . "' and `attempt`='" . $lastAttempt . "'");
+																$fetch4 = mysql_fetch_array($query4);
+																
+																if($fetch4['timeStarted'] > $user->fetchAssinClass($id,"timeDue")){
+																	$alert = "<button type=\"button\" class=\"btn btn-warning\">Late</button>";
+																}
+																$findGrade = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($usering)."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+																if(mysql_num_rows($findGrade) != 0){
+																	$alert = "<button type=\"button\" class=\"btn btn-info\">Graded</button>";
+																}
+																 
+																echo("<h4>" . $fetch3['firstName']. " " . $fetch3['lastName'] . "'s submission(s)<span class=\"pull-right\">" .$alert. "&nbsp;<a href=\"fileGrader.php?id=".$id."&uid=".$usering."&cid=".$class2."\" class=\"btn btn-default\"  >Grade</a></span></h4><hr>");
+																while($fetch2 = mysql_fetch_array($query2)){
+																	$string = "Attempt " . $fetch2['attempt'] . "";
+																	echo("<span class=\"glyphicon glyphicon-save-file\" aria-hidden=\"true\"></span>&nbsp;<a href=\"./viewTest.php?id=" . $id . "\">" . $string. "</a><span class=\"hidden-xs\"> on " . date("F j Y, g:i a", $fetch2['timeStarted']) . "</span><br />");
+																}
+																echo("</div>");
+														echo("</div>");
+													echo("</div>");
+													echo("<hr>");
+												}
+											echo("<h4>Not Submitted</h4>");
+											if($users){
+												$dude = true;
+											}
+											$schoolID = $user->getUserInfo("school");
+											echo("<ul class=\"list-group\">");
+												foreach($user->getUsersFrom($schoolID) as $person){
+													if($dude){
+														if(!in_array($person, $users) && $user->fetchProfileInfo($person, "permissions") != 2){
+															$findGrades = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($person)."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+															if(mysql_num_rows($findGrades) != 0){
+																$alert2 = "<a class=\"badge\" style=\"background-color: #5bc0de;\">Graded</a>";
+															}
+															else{
+																$alert2 = "";
+															}
+															echo("<li class=\"list-group-item\">");
+																echo("<a class=\"badge\" href=\"fileGrader.php?id=".$id."&uid=".$person."&cid=".$class2."\">");
+																	echo("Grade");
+																echo("</a>");
+																if($alert2){ echo($alert2); }
+																echo("".$user->fetchProfileInfo($person,"firstName")." ".$user->fetchProfileInfo($person,"lastName")."");
+															echo("</li>");
+														}
+													}
+													else{
+														$findGrades = mysql_query("SELECT * FROM `grades` WHERE `uid`='" .mysql_real_escape_string($person)."' AND `aid`='" . mysql_real_escape_string($id) . "' AND `cid`='" . mysql_real_escape_string($class2) . "'");
+														if(mysql_num_rows($findGrades) != "0"){
+															$alert2 = "<a class=\"badge\" style=\"background-color: #5bc0de;\">Graded</a>";
+														}
+														else{
+															$alert2 = "";
+														}
+														echo("<li class=\"list-group-item\">");
+															echo("<a class=\"badge\" href=\"fileGrader.php?id=".$id."&uid=".$person."&cid=".$class2."\">");
+																echo("Grade");
+															echo("</a>");
+															if($alert2){ echo($alert2); }
+															echo("".$user->fetchProfileInfo($person,"firstName")." ".$user->fetchProfileInfo($person,"lastName")."");
+														echo("</li>");
+													}
+												}
+											echo("</ul>");
+										echo("</div>");
+									echo("</div>");
+								}
+							}
+							elseif($user->fetchAssinClass($id, "type") == "3"){
+								echo("<h2>Timed Test</h2>");
+									echo("<div class=\"well\">");
+										echo("");
+									echo("</div>");
+							}
+							elseif($user->fetchAssinClass($id, "type") == "4"){
+								echo("<h2>Free Response</h2>");
+									echo("<div class=\"well\">");
+										echo("");
+									echo("</div>");
+							}
+						?>
+				</div>
+			</div>
+            <div class="panel panel-default">
+				<div class="panel-heading">
+                	Comments
+			  	</div>
+				<div class="panel-body">
+					<div class="form-group">
+						<form method="POST">
+							<textarea class="form-control"></textarea>
+						</form>
+					</div>
+					<hr>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<?php
+include "core/footer.php";
+?>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/calendar.js"></script>
+<script src="js/canvas-to-blob.js" type="text/javascript"></script>
+<?php
+if($user->fetchAssinClass($id, "type") == "1")
