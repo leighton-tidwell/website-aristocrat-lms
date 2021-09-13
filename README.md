@@ -17,3 +17,9 @@ The Tech stack included:
 
 
 News article about this here: https://www.reporternews.com/story/news/education/2016/04/15/projects-the-culmination-of-months-of-work-at-atems/92305044/
+
+
+# Infographic
+This is the infographic that was presented to the school district:
+![infographic](https://user-images.githubusercontent.com/5083652/133151555-d011613c-b69c-4ec4-8245-d080d06c4087.png)
+
